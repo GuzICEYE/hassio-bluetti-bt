@@ -16,7 +16,7 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
 )
 
-from bluetti_bt_lib import (
+from bluetti_bt_connect_lib import (
     build_device,
     BluettiDevice,
     DeviceWriter,

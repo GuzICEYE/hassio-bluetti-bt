@@ -11,7 +11,7 @@ from homeassistant.components.bluetooth import (
 )
 from homeassistant.const import CONF_ADDRESS
 from homeassistant.data_entry_flow import FlowResult
-from bluetti_bt_lib import recognize_device
+from bluetti_bt_connect_lib import recognize_device
 
 from .types import InitialDeviceConfig, ManufacturerData, OptionalDeviceConfig
 from .const import DOMAIN

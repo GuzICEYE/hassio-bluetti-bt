@@ -2,8 +2,8 @@ import json
 from typing import List
 import unittest
 
-from bluetti_bt_lib.base_devices import BluettiDevice
-from bluetti_bt_lib.devices import DEVICES
+from bluetti_bt_connect_lib.base_devices import BluettiDevice
+from bluetti_bt_connect_lib.devices import DEVICES
 
 
 class TestTranslationsEn(unittest.TestCase):

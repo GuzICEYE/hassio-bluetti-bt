@@ -122,7 +122,7 @@
       "ctrl_led_mode": {
         "name": "LED Mode"
       },
-       "ctrl_ups_mode": {
+      "ctrl_ups_mode": {
         "name": "UPS Mode"
       },
       "dc_input_current": {
@@ -277,6 +277,180 @@
       },
       "pack_cell_voltages": {
         "name": "Voltage Cell {cell_num}"
+      },
+      "ac_pv_l1_power": {
+        "name": "AC-Coupled Solar L1 Power"
+      },
+      "ac_pv_l1_voltage": {
+        "name": "AC-Coupled Solar L1 Voltage"
+      },
+      "ac_pv_l2_power": {
+        "name": "AC-Coupled Solar L2 Power"
+      },
+      "ac_pv_l2_voltage": {
+        "name": "AC-Coupled Solar L2 Voltage"
+      },
+      "ac_pv_l3_power": {
+        "name": "AC-Coupled Solar L3 Power"
+      },
+      "ac_pv_l3_voltage": {
+        "name": "AC-Coupled Solar L3 Voltage"
+      },
+      "ac_pv_power": {
+        "name": "AC-Coupled Solar Power"
+      },
+      "active_alarms": {
+        "name": "Active Alarms"
+      },
+      "active_cell_count": {
+        "name": "Active Cell Count"
+      },
+      "alarm_count": {
+        "name": "Alarm Count"
+      },
+      "battery_current": {
+        "name": "Battery Current"
+      },
+      "battery_maintenance_progress": {
+        "name": "Battery Maintenance Progress"
+      },
+      "battery_maintenance_status": {
+        "name": "Battery Maintenance"
+      },
+      "battery_maintenance_stop_reason": {
+        "name": "Battery Maintenance Stop Reason"
+      },
+      "battery_power_bms": {
+        "name": "Battery Power (BMS)"
+      },
+      "battery_soc": {
+        "name": "Battery Pack SOC"
+      },
+      "battery_stack_count": {
+        "name": "Battery Modules"
+      },
+      "battery_status": {
+        "name": "Battery Status"
+      },
+      "bms_controller_model": {
+        "name": "Battery Controller (BMS) Model"
+      },
+      "cell_voltage_max": {
+        "name": "Highest Cell Voltage"
+      },
+      "cell_voltage_min": {
+        "name": "Lowest Cell Voltage"
+      },
+      "cell_voltage_spread": {
+        "name": "Cell Voltage Spread"
+      },
+      "connected_devices": {
+        "name": "Connected Devices"
+      },
+      "consumption_power_all": {
+        "name": "Household Consumption Power"
+      },
+      "ems_control_mode": {
+        "name": "EMS Control Mode"
+      },
+      "firmware_arm": {
+        "name": "Firmware ARM"
+      },
+      "firmware_dsp": {
+        "name": "Firmware DSP"
+      },
+      "firmware_iot": {
+        "name": "Firmware IoT"
+      },
+      "grid_export_energy": {
+        "name": "Grid Export Energy"
+      },
+      "grid_import_energy": {
+        "name": "Grid Import Energy"
+      },
+      "grid_power_all": {
+        "name": "Grid Power"
+      },
+      "home_consumption_energy": {
+        "name": "Home Consumption Energy"
+      },
+      "home_load_power": {
+        "name": "Home Load Power"
+      },
+      "inverter_status": {
+        "name": "Inverter Status"
+      },
+      "load_p1_power": {
+        "name": "Load Phase 1 Power"
+      },
+      "load_p2_power": {
+        "name": "Load Phase 2 Power"
+      },
+      "load_p3_power": {
+        "name": "Load Phase 3 Power"
+      },
+      "max_charge_current": {
+        "name": "Max Charge Current"
+      },
+      "max_discharge_current": {
+        "name": "Max Discharge Current"
+      },
+      "pack_temperature": {
+        "name": "Pack Temperature"
+      },
+      "pv_input_power_all": {
+        "name": "Total PV Input Power (All Strings)"
+      },
+      "schedule_slot_1": {
+        "name": "Schedule Slot 1"
+      },
+      "schedule_slot_2": {
+        "name": "Schedule Slot 2"
+      },
+      "schedule_slot_3": {
+        "name": "Schedule Slot 3"
+      },
+      "schedule_slot_4": {
+        "name": "Schedule Slot 4"
+      },
+      "schedule_slot_5": {
+        "name": "Schedule Slot 5"
+      },
+      "schedule_slot_6": {
+        "name": "Schedule Slot 6"
+      },
+      "self_sufficiency": {
+        "name": "Self-Sufficiency"
+      },
+      "soh": {
+        "name": "Battery Pack SOH"
+      },
+      "solar_energy": {
+        "name": "Solar Energy"
+      },
+      "temperature_sensor_count": {
+        "name": "Temperature Sensor Count"
+      },
+      "time_remaining_minutes": {
+        "name": "Battery Time Remaining"
+      },
+      "total_ac_power": {
+        "name": "Total AC Activity (Magnitude)"
+      },
+      "total_pv_power": {
+        "name": "Total PV Power"
+      },
+      "total_self_consumption": {
+        "name": "Total Self Consumption"
+      },
+      "voltage": {
+        "name": "Battery Pack Voltage"
+      },
+      "wifi_signal": {
+        "name": "WiFi Signal"
+      },
+      "working_mode": {
+        "name": "Working Mode"
       }
     },
     "switch": {
@@ -303,6 +477,18 @@
       },
       "ctrl_power_off": {
         "name": "Poweroff"
+      },
+      "charge_from_grid_enabled": {
+        "name": "Charge From Grid"
+      },
+      "ems_control": {
+        "name": "AI Control Mode"
+      },
+      "grid_export_enabled": {
+        "name": "Grid Export"
+      },
+      "time_control_enabled": {
+        "name": "Time Control"
       }
     },
     "select": {
@@ -324,8 +510,11 @@
       "ctrl_led_mode": {
         "name": "LED Mode"
       },
-       "ctrl_ups_mode": {
+      "ctrl_ups_mode": {
         "name": "UPS Mode"
+      },
+      "working_mode": {
+        "name": "Working Mode"
       }
     },
     "binary_sensor": {
@@ -367,6 +556,24 @@
       },
       "power_lifting_on": {
         "name": "Power Lifting"
+      },
+      "charge_from_grid_enabled": {
+        "name": "Charge From Grid"
+      },
+      "cloud_connected": {
+        "name": "Cloud Connected"
+      },
+      "ems_control": {
+        "name": "AI Control Mode"
+      },
+      "grid_export_enabled": {
+        "name": "Grid Export"
+      },
+      "system_error": {
+        "name": "System Error"
+      },
+      "time_control_enabled": {
+        "name": "Time Control"
       }
     }
   }

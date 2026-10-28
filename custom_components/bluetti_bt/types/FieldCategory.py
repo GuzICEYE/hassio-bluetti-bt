@@ -1,5 +1,5 @@
 from homeassistant.const import EntityCategory
-from bluetti_bt_lib import FieldName
+from bluetti_bt_connect_lib import FieldName
 
 
 DIAGNOSTICS = [
