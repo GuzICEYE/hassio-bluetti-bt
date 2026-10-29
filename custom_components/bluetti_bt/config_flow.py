@@ -46,11 +46,11 @@ class BluettiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             "Device identified as %s with iot module version %s (using encryption: %s)",
             recognized.name,
             recognized.iot_version,
-            recognized.encrypted,
+            getattr(recognized, "encrypted", False),
         )
 
         discovery_info.manufacturer_data = ManufacturerData(
-            recognized.name, recognized.encrypted
+            recognized.name, getattr(recognized, "encrypted", False)
         ).as_dict
         discovery_info.name = recognized.full_name
         self._discovery_info = discovery_info
