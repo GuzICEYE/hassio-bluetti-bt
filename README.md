@@ -11,6 +11,13 @@ Bluetti Integration for Home Assistant
 > as PyPI dependencies. Those names resolve to an unrelated 2015 backport and a Python 2 era package, so the install fails
 > inside Home Assistant and the integration never loads (`RequirementsNotFound`). bluetti-bt-connect-lib declares only
 > real dependencies and is a drop-in replacement for the API this integration uses.
+>
+> **Encrypted devices:** since 0.4.0 this fork reads encrypted devices such as the Apex 300 (`AP300`) locally over
+> Bluetooth, with no BLUETTI account or cloud. It installs bluetti-bt-connect-lib 2.1.0 from the
+> [`bluetti-bt-connect-lib` branch](https://github.com/GuzICEYE/hassio-bluetti-bt/tree/bluetti-bt-connect-lib) of this
+> repository, which restores the encryption layer the library had dropped. Encrypted devices are read-only: sensors and
+> binary sensors, no switches. The Bluetooth link to an encrypted device is held open between polls, so the BLUETTI app
+> cannot connect to it over Bluetooth at the same time.
 
 The current [Roadmap for this project and the library can be found here](https://github.com/users/Patrick762/projects/4)
 

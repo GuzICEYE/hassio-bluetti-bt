@@ -7,10 +7,20 @@ import logging
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from bluetti_bt_connect_lib import build_device, DeviceReader, DeviceReaderConfig
+from bluetti_bt_connect_lib import (
+    build_device,
+    DeviceConnection,
+    DeviceReader,
+    DeviceReaderConfig,
+)
 
 from .utils import mac_loggable
 from .types import FullDeviceConfig
+
+
+ENCRYPTED_KEEP_ALIVE_MARGIN = 15
+"""Seconds the link to an encrypted device is held beyond the polling
+interval, so the next poll finds it still open."""
 
 
 class PollingCoordinator(DataUpdateCoordinator):
@@ -34,6 +44,7 @@ class PollingCoordinator(DataUpdateCoordinator):
 
         self.config = config
         self.reader = None
+        self.connection = None
 
         # Create client
         self.logger.info("Creating client for %s", config.name)
@@ -43,6 +54,22 @@ class PollingCoordinator(DataUpdateCoordinator):
             self.logger.error("Device is unknown type: %s", config.name)
             return
 
+        # An encrypted device runs a key exchange on every new connection, on
+        # top of the connection setup itself. Holding the link between polls
+        # pays for both once instead of on every poll. Plain devices keep the
+        # connect-read-disconnect cycle, which leaves them free for the
+        # BLUETTI app in between.
+        keep_alive = 0
+
+        if config.use_encryption:
+            self.connection = DeviceConnection(
+                config.address,
+                device_provider=lambda: bluetooth.async_ble_device_from_address(
+                    hass, config.address, connectable=True
+                ),
+            )
+            keep_alive = config.polling_interval + ENCRYPTED_KEEP_ALIVE_MARGIN
+
         self.reader = DeviceReader(
             config.address,
             bluetti_device,
@@ -50,9 +77,16 @@ class PollingCoordinator(DataUpdateCoordinator):
             DeviceReaderConfig(
                 config.polling_timeout,
                 config.use_encryption,
+                keep_alive,
             ),
             lock,
+            connection=self.connection,
         )
+
+    async def async_disconnect(self) -> None:
+        """Release a held connection, when the entry is unloaded."""
+        if self.connection is not None:
+            await self.connection.disconnect()
 
     async def _async_update_data(self):
         """Fetch data from API endpoint.
