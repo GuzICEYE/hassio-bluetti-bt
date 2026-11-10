@@ -1,6 +1,6 @@
 """Bluetti BT Lib exports."""
 
-__version__ = "2.2.0"
+__version__ = "2.3.0"
 """Single source of truth for the package version.
 
 setup.py reads this when LIB_VERSION is not set, so an install straight from

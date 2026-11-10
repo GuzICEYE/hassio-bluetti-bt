@@ -2,6 +2,16 @@
 
 Newest first. Each section is also published as the GitHub release for that version.
 
+## 2.3.0 (2026-11-10)
+
+### Apex 300: SolarX 4K readings
+
+A SolarX 4K has no Bluetooth identity of its own in practice, but the Apex
+300 (or Hub A1) it feeds reports its input. New fields `solarx_power` (1228),
+`solarx_voltage` (1229) and `solarx_current` (1230), read from slave 0. They
+are zero when no SolarX is attached. Checked on a real system: the reported
+power matched voltage times current, at about 360 V.
+
 ## 2.2.0 (2026-11-10)
 
 ### Writes on encrypted devices (untested on hardware)

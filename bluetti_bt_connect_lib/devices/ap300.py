@@ -35,6 +35,12 @@ class AP300(BaseDeviceV2):
                 UIntField(FieldName.DC_INPUT_POWER, 144).at_slave(SLAVE),
                 UIntField(FieldName.AC_INPUT_POWER, 146).at_slave(SLAVE),
                 DecimalField(FieldName.POWER_GENERATION, 154).at_slave(SLAVE),
+                # SolarX 4K: the high-voltage solar input. Three words of an
+                # 8-word input block at 1226; all zero with no SolarX attached.
+                # Checked on a real system (357.0 V x 1.6 A, 593 W reported).
+                UIntField(FieldName.SOLARX_POWER, 1228).at_slave(SLAVE),
+                DecimalField(FieldName.SOLARX_VOLTAGE, 1229, 1).at_slave(SLAVE),
+                DecimalField(FieldName.SOLARX_CURRENT, 1230, 1).at_slave(SLAVE),
                 DecimalField(FieldName.AC_INPUT_FREQUENCY, 1300, 1).at_slave(SLAVE),
                 DecimalField(FieldName.AC_INPUT_VOLTAGE, 1314, 1).at_slave(SLAVE),
                 DecimalField(FieldName.AC_OUTPUT_FREQUENCY, 1500, 1).at_slave(SLAVE),
