@@ -7,4 +7,6 @@ async_timeout
 bleak
 bleak_retry_connector
 crcmod
+cryptography
+pyasn1
 typing_extensions; python_version < "3.12"

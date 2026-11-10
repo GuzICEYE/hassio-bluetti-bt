@@ -12,13 +12,20 @@ class BaseDeviceV2(BluettiDevice):
         additional_fields: List[DeviceField] = [],
         pack_fields: List[DeviceField] = [],
         max_packs: int = 0,
+        slave: int = 1,
         **kwargs,
     ):
+        self.slave = slave
+        """Modbus slave address the base fields (type, serial, state of
+        charge) are read from. Slave 1 on most devices. 2nd-generation IoT
+        devices such as the Apex 300 answer at slave 1 with every register
+        zero and serve the real values at slave 0."""
+
         super().__init__(
             [
-                SwapStringField(FieldName.DEVICE_TYPE, 110, 6),
-                SerialNumberField(FieldName.DEVICE_SN, 116),
-                UIntField(FieldName.BATTERY_SOC, 102, min=0, max=100),
+                SwapStringField(FieldName.DEVICE_TYPE, 110, 6).at_slave(slave),
+                SerialNumberField(FieldName.DEVICE_SN, 116).at_slave(slave),
+                UIntField(FieldName.BATTERY_SOC, 102, min=0, max=100).at_slave(slave),
             ]
             + additional_fields,
             pack_fields,
@@ -31,12 +38,12 @@ class BaseDeviceV2(BluettiDevice):
 
     def get_device_type_registers(self) -> List[ReadableRegisters]:
         return [
-            ReadableRegisters(110, 6),
+            ReadableRegisters(110, 6, self.slave),
         ]
 
     def get_device_sn_registers(self) -> List[ReadableRegisters]:
         return [
-            ReadableRegisters(116, 4),
+            ReadableRegisters(116, 4, self.slave),
         ]
 
     def get_iot_version(self) -> int:

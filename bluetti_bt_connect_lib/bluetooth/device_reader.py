@@ -26,6 +26,14 @@ from ..schedule import (
 )
 from ..utils.privacy import mac_loggable
 from .device_connection import DeviceConnection
+from .encryption import (
+    AES_BLOCK_SIZE,
+    KEX_MAGIC,
+    BluettiEncryption,
+    Message,
+    MessageType,
+    hexsum,
+)
 from .write_result import WriteResult, WriteOutcome
 from .raw_read import MAX_RAW_READ_COUNT, RawReadOutcome, RawReadResult
 
@@ -36,6 +44,18 @@ NODE_LIST_ADDRESS = 21002
 NODE_LIST_COUNT = 32
 """Where the node list starts and how much of it read_nodes reads."""
 
+ENCRYPTION_DETECT_TIMEOUT = 3
+"""Seconds to wait, in auto mode, for an encrypted device to open the key
+exchange. Encrypted devices send their challenge as soon as notifications are
+subscribed; a device that stays silent this long speaks the plain protocol."""
+
+ENCRYPTION_HANDSHAKE_TIMEOUT = 15
+"""Seconds allowed for the whole key exchange once it is expected."""
+
+MAX_ENCRYPTED_MESSAGE = 4096
+"""Upper bound for one encrypted message. A larger length header means the
+stream is out of step, not that the device sent something that big."""
+
 LATE_REPLY_GRACE = 1
 """Seconds to wait after a probe register times out, so a reply that was
 merely slow lands now rather than inside the next request's response."""
@@ -45,14 +65,20 @@ class DeviceReaderConfig:
     def __init__(
         self,
         timeout: int = 60,
-        use_encryption: bool = False,
+        use_encryption: bool | None = False,
         keep_alive_seconds: float = 0,
         slow_poll_seconds: float = 600,
     ):
         self.timeout = timeout
         self.use_encryption = use_encryption
-        # Encryption support was removed; kept only so callers that pass
-        # this positionally (e.g. the coordinator) keep working. No effect.
+        """Whether the device speaks BLUETTI's encrypted protocol.
+
+        True waits for the key exchange before the first request and fails
+        the conversation if it does not complete. False sends plain requests
+        straight away. None detects it: the reader waits briefly for the
+        device to open the key exchange and carries on in the clear if it
+        does not. `DeviceReader.encryption_detected` reports the outcome.
+        """
 
         self.keep_alive_seconds = keep_alive_seconds
         """How long to hold a shared connection open after a conversation.
@@ -112,6 +138,17 @@ class DeviceReader:
         self.current_registers = None
         self.notify_response = bytearray()
         self.notify_future: asyncio.Future[Any] | None = None
+
+        self.encryption = BluettiEncryption()
+        self.encrypted_buffer = bytearray()
+        self._challenge_seen = asyncio.Event()
+        self._handshake_done = asyncio.Event()
+        self._challenge: bytes | None = None
+        self._pubkey_answered = False
+
+        self.encryption_detected: bool | None = None
+        """Whether the device turned out to be encrypted. None until a
+        conversation has got far enough to tell."""
 
         self.last_exception_code: int | None = None
         """Exception code from the most recent command, if the device refused
@@ -381,15 +418,22 @@ class DeviceReader:
         """Get a usable client and notification subscription."""
 
         if self.connection is not None:
+            # A fresh link means a fresh key exchange. The callback has to be
+            # in place before connecting: an encrypted device sends its
+            # challenge the moment notifications are subscribed.
+            if not self.connection.is_connected:
+                self._reset_encryption()
+
+            self.connection.set_data_callback(self._handle_data)
+            self.connection.set_disconnect_callback(self._abandon_pending)
+
             if not await self.connection.ensure_connected():
                 self.logger.error("Shared connection unavailable")
                 return False
 
             self.client = self.connection.client
-            self.connection.set_data_callback(self._handle_data)
-            self.connection.set_disconnect_callback(self._abandon_pending)
             self.logger.debug("Using shared connection")
-            return True
+            return await self._await_encryption()
 
         self.logger.debug("Searching for device")
 
@@ -416,9 +460,58 @@ class DeviceReader:
         self.logger.debug("Connected to device")
 
         if not self.has_notifier:
+            # An owned connection is new every time, so is the key exchange.
+            self._reset_encryption()
             await self.client.start_notify(NOTIFY_UUID, self._notification_handler)
             self.has_notifier = True
             self.logger.debug("Notification handler setup complete")
+
+        return await self._await_encryption()
+
+    def _reset_encryption(self) -> None:
+        """Forget all key material, ready for a new connection."""
+        self.encryption = BluettiEncryption()
+        self.encrypted_buffer.clear()
+        self._challenge_seen.clear()
+        self._handshake_done.clear()
+        self._challenge = None
+        self._pubkey_answered = False
+
+    async def _await_encryption(self) -> bool:
+        """Hold the first request back until the key exchange has finished.
+
+        Returns False only when encryption is required (or was started by the
+        device) and the exchange did not complete in time.
+        """
+        mode = self.config.use_encryption
+
+        if mode is False:
+            return True
+
+        if self.encryption.is_ready_for_commands:
+            return True
+
+        if mode is None and self.encryption_detected is False:
+            # Already found to be a plain device; do not wait again.
+            return True
+
+        if mode is None and not self._challenge_seen.is_set():
+            try:
+                await asyncio.wait_for(
+                    self._challenge_seen.wait(), ENCRYPTION_DETECT_TIMEOUT
+                )
+            except (TimeoutError, asyncio.TimeoutError):
+                self.logger.debug("No key exchange offered - plain protocol")
+                self.encryption_detected = False
+                return True
+
+        try:
+            await asyncio.wait_for(
+                self._handshake_done.wait(), ENCRYPTION_HANDSHAKE_TIMEOUT
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            self.logger.warning("Encryption key exchange did not complete")
+            return False
 
         return True
 
@@ -703,6 +796,11 @@ class DeviceReader:
 
         command_bytes = bytes(registers)
 
+        if self.encryption.is_ready_for_commands:
+            command_bytes = self.encryption.aes_encrypt(
+                command_bytes, self.encryption.secure_aes_key, None
+            )
+
         try:
             await self.client.write_gatt_char(WRITE_UUID, command_bytes)
 
@@ -741,6 +839,149 @@ class DeviceReader:
         from DeviceConnection when the link is shared. Identical either way.
         """
         self.logger.debug("Got new data (%d bytes)", len(data))
+
+        plain = self._unwrap(data)
+
+        if plain is None:
+            return
+
+        self._handle_plain(plain)
+
+    def _is_kex_frame(self, data: bytes) -> bool:
+        """Whether this is a key-exchange frame rather than protocol data.
+
+        The magic alone is not enough - register data can start with the same
+        two bytes - so the checksum and the message type have to agree too.
+        """
+        if len(data) < 6 or bytes(data[:2]) != KEX_MAGIC:
+            return False
+
+        body = bytes(data[2:-2])
+
+        if hexsum(body, 2) != bytes(data[-2:]):
+            return False
+
+        return body[0] in {t.value for t in MessageType}
+
+    def _unwrap(self, data: bytes) -> bytes | None:
+        """Strip the encryption layer, returning protocol bytes if any.
+
+        Key-exchange frames are answered here and never reach the protocol
+        parser. On a plain device this returns the data untouched.
+        """
+        if not self.encrypted_buffer and self._is_kex_frame(data):
+            self._handle_kex(Message(bytes(data)))
+            return None
+
+        if self.encryption.unsecure_aes_key is None:
+            return data
+
+        self.encrypted_buffer.extend(data)
+        plain = bytearray()
+
+        while len(self.encrypted_buffer) >= 2:
+            key, iv = self.encryption.getKeyIv()
+            data_len = (self.encrypted_buffer[0] << 8) + self.encrypted_buffer[1]
+            header_size = 6 if iv is None else 2
+            padded_len = -(-data_len // AES_BLOCK_SIZE) * AES_BLOCK_SIZE
+            expected = header_size + padded_len
+
+            if data_len == 0 or expected > MAX_ENCRYPTED_MESSAGE:
+                self.logger.warning(
+                    "Encrypted stream out of step (length %d), dropping buffer",
+                    data_len,
+                )
+                self.encrypted_buffer.clear()
+                break
+
+            if len(self.encrypted_buffer) < expected:
+                self.logger.debug(
+                    "Buffering fragment: %d/%d bytes",
+                    len(self.encrypted_buffer),
+                    expected,
+                )
+                break
+
+            message = bytes(self.encrypted_buffer[:expected])
+            del self.encrypted_buffer[:expected]
+
+            try:
+                decrypted = self.encryption.aes_decrypt(message, key, iv)
+            except ValueError as err:
+                self.logger.error("Decryption failed: %s", err)
+                self.encrypted_buffer.clear()
+                break
+
+            if self._is_kex_frame(decrypted):
+                self._handle_kex(Message(decrypted))
+                continue
+
+            plain.extend(decrypted)
+
+        return bytes(plain) if plain else None
+
+    def _handle_kex(self, message: Message) -> None:
+        """Advance the key exchange by one step."""
+        try:
+            kind = message.type
+
+            # The device repeats a step until it has seen the answer, so the
+            # same message can arrive several times. Each step is answered
+            # once: answering a repeated public key again would generate a
+            # second local keypair, and the shared secret would then be
+            # derived from a key the device never accepted.
+            if kind == MessageType.CHALLENGE:
+                challenge = bytes(message.data)
+
+                if challenge == self._challenge:
+                    self.logger.debug("Repeated challenge, already answered")
+                    return
+
+                # The device (re)starts the exchange; drop any older keys.
+                self._reset_encryption()
+                self._challenge = challenge
+                self._challenge_seen.set()
+                self._send_kex(self.encryption.msg_challenge(message))
+            elif kind == MessageType.CHALLENGE_ACCEPTED:
+                self.logger.debug("Challenge accepted")
+            elif kind == MessageType.PEER_PUBKEY:
+                if self._pubkey_answered:
+                    self.logger.debug("Repeated public key, already answered")
+                    return
+
+                reply = self.encryption.msg_peer_pubkey(message)
+                self._pubkey_answered = True
+                self._send_kex(reply)
+            elif kind == MessageType.PUBKEY_ACCEPTED:
+                self.encryption.msg_key_accepted(message)
+                self.encryption_detected = True
+                self._handshake_done.set()
+                self.logger.debug("Key exchange complete")
+        except Exception as err:  # a bad signature, a malformed frame
+            self.logger.error("Key exchange failed: %s", err)
+
+    def _send_kex(self, payload: bytes | None) -> None:
+        """Queue one key-exchange reply; the notification path cannot await."""
+        if payload is None:
+            return
+
+        client = self.connection.client if self.connection is not None else self.client
+
+        if client is None:
+            return
+
+        async def _send() -> None:
+            try:
+                await client.write_gatt_char(WRITE_UUID, payload)
+            except Exception as err:
+                self.logger.warning("Could not send key-exchange reply: %s", err)
+
+        asyncio.ensure_future(_send())
+
+    def _handle_plain(self, data: bytes) -> None:
+        """Accumulate decrypted (or plain) protocol bytes."""
+        if self.encryption.is_ready_for_commands:
+            self.logger.debug("Decrypted: %s", data.hex())
 
         self.notify_response.extend(data)
 

@@ -19,7 +19,7 @@ async def async_detect_device(address: str):
 
     print()
     print(
-        f"Device type is '{recognized.name}' with iot version {recognized.iot_version} and serial {recognized.sn}. Full name: {recognized.full_name}"
+        f"Device type is '{recognized.name}' with iot version {recognized.iot_version} and serial {recognized.sn}. Full name: {recognized.full_name}. Encrypted: {recognized.encrypted}"
     )
 
 

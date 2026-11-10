@@ -57,6 +57,9 @@ setup(
         "bleak",
         "bleak_retry_connector",
         "crcmod",
+        # The encrypted protocol (bluetooth/encryption.py).
+        "cryptography",
+        "pyasn1",
         # utils.bleak_client_mock needs collections.abc.Buffer, which only
         # exists from 3.12 onwards.
         'typing_extensions; python_version < "3.12"',

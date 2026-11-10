@@ -2,6 +2,38 @@
 
 Newest first. Each section is also published as the GitHub release for that version.
 
+## 2.1.0 (2026-11-10)
+
+### Encrypted devices are back, and the Apex 300 works
+
+bluetti-bt-lib 0.1.7 could read encrypted devices; 2.0 of this fork removed
+that. This release ports the encryption layer onto the current reader, so
+encrypted units can be read locally again with no BLUETTI account or cloud.
+
+- New `bluetooth/encryption.py` (from bluetti-bt-lib, based on
+  nhurman/bluetti_mqtt): ECDH key exchange, then AES-CBC around the usual
+  protocol. `cryptography` and `pyasn1` are new dependencies.
+- `DeviceReaderConfig.use_encryption` works again. `True` waits for the key
+  exchange, `False` is the plain protocol, and the new `None` detects it.
+  `DeviceReader.encryption_detected` reports what was found.
+- `recognize_device()` detects encryption and reports it as
+  `DeviceRecognizerResult.encrypted`. It now does all its reads over one
+  connection, which matters on an encrypted device because every new
+  connection costs a key exchange.
+- Fixed while testing on hardware: the device repeats a key-exchange step
+  when the answer is slow, and answering a repeated public key generated a
+  second local keypair, leaving the two sides with different keys. Each step
+  is now answered once.
+- Key-exchange frames are recognised by magic, checksum and type together, so
+  register data that happens to start with the magic bytes is not mistaken
+  for one.
+- **Apex 300 (`AP300`)**: it answers at slave 1 with every register zero and
+  serves the real data at slave 0, so it was never recognised. Its fields now
+  read from slave 0 (`BaseDeviceV2(slave=0)`), the recognizer tries slave 0,
+  and the field list gained output frequency and voltage, input frequency,
+  power generation and the AC/DC output states. All checked on a real unit.
+- Writes use the encrypted channel too, but are untested on hardware.
+
 ## 2.0.13 (2026-10-26)
 
 ### EP2000: 14 requests a poll, no refused read at startup

@@ -12,6 +12,29 @@ Core functions based on https://github.com/warhammerkid/bluetti_mqtt
 ## Disclaimer
 This library is provided without any warranty or support by Bluetti. I do not take responsibility for any problems it may cause in all cases. Use it at your own risk.
 
+## Encrypted devices (v2.1)
+
+Newer BLUETTI units (the Apex 300 among them) wrap the protocol in an
+encrypted session: an ECDH key exchange followed by AES-CBC. This build
+restores the encryption layer that bluetti-bt-lib 0.1.7 had and that
+bluetti-bt-connect-lib 2.0 removed, ported onto the current reader. It needs
+no BLUETTI account and no cloud connection.
+
+- `recognize_device()` detects encryption by itself and reports it as
+  `DeviceRecognizerResult.encrypted`.
+- `DeviceReaderConfig(use_encryption=True)` reads an encrypted device.
+  `use_encryption=None` detects it per connection.
+- A key exchange runs on every new connection, so hold the link between polls
+  with a `DeviceConnection` and `keep_alive_seconds`.
+- Checked against a real Apex 300 (`AP300`). It serves its data at Modbus
+  slave 0; slave 1 answers with every register zero.
+- Writes go through the same encrypted channel but have not been tested on
+  hardware. Treat encrypted devices as read-only for now.
+
+The encryption code is based on
+[nhurman/bluetti_mqtt](https://github.com/nhurman/bluetti_mqtt) by way of
+bluetti-bt-lib.
+
 ## ✅ EP2000: full local write control (v2.0)
 
 Earlier versions of this fork carried a long warning that grid and working-mode
@@ -209,7 +232,7 @@ FieldName.CTRL_POWER_LIFTING: False
 
 ### Write to supported device
 
-INFO: Devices with encryption are currently not supported!
+INFO: Writing to devices with encryption has not been tested!
 
 ```bash
 usage: bluetti-write [-h] [-m MAC] [-t TYPE] [--on ON] [--off OFF] [-v VALUE] [-e ENCRYPTION] field
