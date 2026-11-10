@@ -1,14 +1,6 @@
 import asyncio
-import hashlib
-import os
-import struct
 import unittest
 from unittest import mock
-
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ec
-
-import crcmod.predefined
 
 from bluetti_bt_connect_lib import (
     DeviceReader,
@@ -18,166 +10,14 @@ from bluetti_bt_connect_lib import (
 )
 from bluetti_bt_connect_lib.base_devices import BluettiDevice
 from bluetti_bt_connect_lib.bluetooth import device_reader, encryption
-from bluetti_bt_connect_lib.bluetooth.encryption import (
-    KEX_MAGIC,
-    LOCAL_AES_KEY,
-    PRIVATE_KEY_L1,
-    BluettiEncryption,
-    der_to_raw_ecdsa,
-    hexsum,
-    hexxor,
-    pubkey_from_bytes,
-    pubkey_to_bytes,
-    raw_ecdsa_to_der,
-)
 from bluetti_bt_connect_lib.fields import FieldName, SwitchField, UIntField
-from bluetti_bt_connect_lib.utils.bleak_client_mock import ClientMockNoEncryption
+from bluetti_bt_connect_lib.utils.bleak_client_mock import (
+    ClientMockEncrypted as EncryptedClientMock,
+    ClientMockNoEncryption,
+    kex_frame as kex,
+)
 
 MAC = "00:11:00:11:00:11"
-
-modbus_crc = crcmod.predefined.mkCrcFun("modbus")
-
-
-def kex(body: bytes) -> bytes:
-    return KEX_MAGIC + body + hexsum(body, 2)
-
-
-class EncryptedClientMock(ClientMockNoEncryption):
-    """The device side of BLUETTI's encrypted protocol.
-
-    Runs the same key exchange a real encrypted power station does, then
-    serves registers through the encrypted channel. Replies are delivered in
-    BLE-sized fragments, the way they arrive from hardware.
-
-    The real devices sign their public key with a key only BLUETTI holds, so
-    the mock signs with its own and the tests swap the matching public key in.
-    """
-
-    def __init__(
-        self,
-        fragment: int = 20,
-        corrupt_signature: bool = False,
-        repeats: int = 1,
-        refuse: dict | None = None,
-    ):
-        super().__init__()
-        self.refuse = refuse or {}
-        """Register address -> Modbus exception code to refuse a write with."""
-        self.writes = []
-        """Writes the device saw after decryption: (slave, address, value)."""
-        self.fragment = fragment
-        self.corrupt_signature = corrupt_signature
-        self.repeats = repeats
-        """How many times each key-exchange step is sent. Real devices
-        repeat a step when the answer is slow to arrive."""
-        self.signing_key = ec.generate_private_key(ec.SECP256R1())
-        self.crypto = BluettiEncryption()
-        self.private = None
-        self.secure_key = None
-        self.plain_requests = []
-        self.state = "idle"
-
-    @property
-    def signing_pubkey_hex(self) -> str:
-        return (
-            self.signing_key.public_key()
-            .public_bytes(
-                serialization.Encoding.DER,
-                serialization.PublicFormat.SubjectPublicKeyInfo,
-            )
-            .hex()
-        )
-
-    async def _notify(self, data: bytes) -> None:
-        for i in range(0, len(data), self.fragment):
-            await self._callback(0, bytearray(data[i : i + self.fragment]))
-
-    async def start_notify(self, char_specifier, callback, **kwargs) -> None:
-        self._callback = callback
-        self.state = "challenge"
-        self.seed = os.urandom(4)
-        self.iv = hashlib.md5(self.seed[::-1]).digest()
-        self.key = hexxor(self.iv, bytes.fromhex(LOCAL_AES_KEY))
-        # Sent from a task, as a real device sends it after the subscribe
-        # has returned.
-        async def challenge():
-            for _ in range(self.repeats):
-                await self._callback(0, bytearray(kex(b"\x01\x04" + self.seed)))
-
-        asyncio.ensure_future(challenge())
-
-    async def write_gatt_char(self, char_specifier, data, response=None) -> None:
-        data = bytes(data)
-
-        if self.state == "challenge":
-            assert data == kex(b"\x02\x04" + self.iv[8:12]), "bad challenge reply"
-            await self._callback(0, bytearray(kex(b"\x03\x01\x00")))
-
-            self.private = ec.generate_private_key(ec.SECP256R1())
-            pub = pubkey_to_bytes(self.private.public_key())
-            signature = der_to_raw_ecdsa(
-                self.signing_key.sign(pub + self.iv, ec.ECDSA(hashes.SHA256()))
-            )
-            if self.corrupt_signature:
-                signature = bytes(64)
-            message = kex(b"\x04\x80" + pub + signature)
-            self.state = "pubkey"
-            for _ in range(self.repeats):
-                await self._notify(self.crypto.aes_encrypt(message, self.key, self.iv))
-            return
-
-        if self.state == "pubkey":
-            message = self.crypto.aes_decrypt(data, self.key, self.iv)
-            assert message[:4] == KEX_MAGIC + b"\x05\x80", "bad pubkey message"
-            peer_pub, signature = message[4:68], message[68:132]
-
-            local = ec.derive_private_key(
-                int.from_bytes(bytes.fromhex(PRIVATE_KEY_L1), "big"), ec.SECP256R1()
-            )
-            local.public_key().verify(
-                raw_ecdsa_to_der(signature),
-                peer_pub + self.iv,
-                ec.ECDSA(hashes.SHA256()),
-            )
-
-            self.secure_key = self.private.exchange(
-                ec.ECDH(), pubkey_from_bytes(peer_pub)
-            )
-            self.state = "secure"
-            await self._notify(
-                self.crypto.aes_encrypt(kex(b"\x06\x01\x00"), self.key, self.iv)
-            )
-            return
-
-        assert self.state == "secure", "request before the key exchange finished"
-        request = self.crypto.aes_decrypt(data, self.secure_key, None)
-        self.plain_requests.append(request)
-
-        if request[1] == 6:
-            reply = self._write_register(request)
-        else:
-            cmd = struct.unpack_from("!HHHH", request)
-            reply = bytes(await self._get_register(cmd[1], cmd[2]))
-
-        await self._notify(self.crypto.aes_encrypt(reply, self.secure_key, None))
-
-    def _write_register(self, request: bytes) -> bytes:
-        """Answer a single-register write the way a device does."""
-        slave = request[0]
-        address, value = struct.unpack_from("!HH", request, 2)
-        self.writes.append((slave, address, value))
-
-        if address in self.refuse:
-            frame = bytearray(5)
-            frame[0] = slave
-            frame[1] = 0x86
-            frame[2] = self.refuse[address]
-            struct.pack_into("<H", frame, -2, modbus_crc(frame[:-2]))
-            return bytes(frame)
-
-        # Function 6 echoes the request back verbatim.
-        self.add_r_int(address, value)
-        return request
 
 
 def _device() -> BluettiDevice:
