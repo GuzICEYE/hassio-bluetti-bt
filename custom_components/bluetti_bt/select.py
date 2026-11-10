@@ -39,12 +39,15 @@ async def async_setup_entry(
         f"{__name__}.{mac_loggable(config.address).replace(':', '_')}"
     )
 
-    if config.use_encryption is True:
-        logger.info("Controls are disabled on encrypted devices")
-        return None
-
     if config is None or not isinstance(coordinator, PollingCoordinator):
         logger.error("No coordinator found")
+        return None
+
+    if not config.controls_enabled:
+        logger.info(
+            "Controls on this encrypted device are off. "
+            "They can be enabled in the integration options."
+        )
         return None
 
     # Generate device info
@@ -188,6 +191,12 @@ class BluettiSelect(CoordinatorEntity, SelectEntity):
 
     async def write_to_device(self, state: str):
         """Write to device."""
+
+        if self.coordinator.writes_through_reader:
+            # Encrypted device: the write has to travel inside the session
+            # the coordinator holds. Raises if the device does not confirm.
+            await self.coordinator.async_write(self._field.name, state)
+            return
 
         try:
             device = await BleakScanner.find_device_by_address(self._address, timeout=5)

@@ -17,6 +17,17 @@ class FullDeviceConfig:
         self.polling_interval = optional.polling_interval
         self.polling_timeout = optional.polling_timeout
         self.max_retries = optional.max_retries
+        self.encrypted_controls = optional.encrypted_controls
+
+    @property
+    def controls_enabled(self) -> bool:
+        """Whether switches and selects are created for this device.
+
+        Always for a plain device. For an encrypted one only when the user
+        opted in, because writing to encrypted devices is untested on
+        hardware; until then its writable fields show as read-only entities.
+        """
+        return not self.use_encryption or self.encrypted_controls
 
     @staticmethod
     def from_dict(raw: Dict[str, Any]):

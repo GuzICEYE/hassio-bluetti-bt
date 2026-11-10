@@ -17,7 +17,8 @@
         "data": {
           "polling_interval": "Polling interval in seconds (restart required)",
           "polling_timeout": "Polling timeout in seconds (restart required)",
-          "max_retries": "Maximum amount of connection retries (restart required)"
+          "max_retries": "Maximum amount of connection retries (restart required)",
+          "encrypted_controls": "Enable controls on this encrypted device (experimental, restart required)"
         }
       }
     },

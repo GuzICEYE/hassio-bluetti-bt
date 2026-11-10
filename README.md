@@ -13,11 +13,15 @@ Bluetti Integration for Home Assistant
 > real dependencies and is a drop-in replacement for the API this integration uses.
 >
 > **Encrypted devices:** since 0.4.0 this fork reads encrypted devices such as the Apex 300 (`AP300`) locally over
-> Bluetooth, with no BLUETTI account or cloud. It installs bluetti-bt-connect-lib 2.1.0 from the
+> Bluetooth, with no BLUETTI account or cloud. It installs bluetti-bt-connect-lib from the
 > [`bluetti-bt-connect-lib` branch](https://github.com/GuzICEYE/hassio-bluetti-bt/tree/bluetti-bt-connect-lib) of this
-> repository, which restores the encryption layer the library had dropped. Encrypted devices are read-only: sensors and
-> binary sensors, no switches. The Bluetooth link to an encrypted device is held open between polls, so the BLUETTI app
-> cannot connect to it over Bluetooth at the same time.
+> repository, which restores the encryption layer the library had dropped. The Bluetooth link to an encrypted device is
+> held open between polls, so the BLUETTI app cannot connect to it over Bluetooth at the same time.
+>
+> **Controls on encrypted devices (0.5.0, experimental):** encrypted devices are read-only by default. The integration
+> options of an encrypted device have a switch that creates its controls (on the Apex 300: AC and DC output) after a
+> restart. A write is sent inside the encrypted session and counts as done only when the device confirms it; anything
+> else raises an error in Home Assistant. **This has not been tried on hardware yet.**
 
 The current [Roadmap for this project and the library can be found here](https://github.com/users/Patrick762/projects/4)
 

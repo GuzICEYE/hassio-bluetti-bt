@@ -4,6 +4,7 @@ import voluptuous as vol
 CONF_POLLING_INTERVAL = "polling_interval"
 CONF_POLLING_TIMEOUT = "polling_timeout"
 CONF_MAX_RETRIES = "max_retries"
+CONF_ENCRYPTED_CONTROLS = "encrypted_controls"
 
 ABORT_REASON_INTERVAL = "invalid_interval"
 ABORT_REASON_TIMEOUT = "invalid_timeout"
@@ -16,10 +17,14 @@ class OptionalDeviceConfig:
         polling_interval: int,
         polling_timeout: int,
         max_retries: int,
+        encrypted_controls: bool = False,
     ):
         self.polling_interval = polling_interval
         self.polling_timeout = polling_timeout
         self.max_retries = max_retries
+        self.encrypted_controls = encrypted_controls
+        """Create switches and selects for an encrypted device. Off by
+        default: writing to encrypted devices is untested on hardware."""
 
     @staticmethod
     def from_dict(raw: Dict[str, Any]):
@@ -27,6 +32,7 @@ class OptionalDeviceConfig:
             raw.get(CONF_POLLING_INTERVAL, 20),
             raw.get(CONF_POLLING_TIMEOUT, 45),
             raw.get(CONF_MAX_RETRIES, 5),
+            bool(raw.get(CONF_ENCRYPTED_CONTROLS, False)),
         )
 
     def validate(self) -> str | None:
@@ -44,7 +50,25 @@ class OptionalDeviceConfig:
             CONF_POLLING_INTERVAL: self.polling_interval,
             CONF_POLLING_TIMEOUT: self.polling_timeout,
             CONF_MAX_RETRIES: self.max_retries,
+            CONF_ENCRYPTED_CONTROLS: self.encrypted_controls,
         }
+
+    def schema_for(self, encrypted: bool) -> vol.Schema:
+        """The options form. The controls toggle is only offered for an
+        encrypted device; a plain one always has its controls."""
+        schema = self.schema
+
+        if not encrypted:
+            return schema
+
+        return schema.extend(
+            {
+                vol.Required(
+                    CONF_ENCRYPTED_CONTROLS,
+                    default=self.encrypted_controls,
+                ): bool,
+            }
+        )
 
     @property
     def schema(self) -> vol.Schema:

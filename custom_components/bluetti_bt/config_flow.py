@@ -14,6 +14,8 @@ from homeassistant.data_entry_flow import FlowResult
 from bluetti_bt_connect_lib import recognize_device
 
 from .types import InitialDeviceConfig, ManufacturerData, OptionalDeviceConfig
+from .types.InitialDeviceConfig import CONF_USE_ENCRYPTION
+from .types.OptionalDeviceConfig import CONF_ENCRYPTED_CONTROLS
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -122,7 +124,16 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         if user_input is not None:
-            config = OptionalDeviceConfig.from_dict(user_input)
+            # The form of a plain device has no controls toggle; keep
+            # whatever is stored rather than resetting it.
+            config = OptionalDeviceConfig.from_dict(
+                {
+                    CONF_ENCRYPTED_CONTROLS: self.config_entry.data.get(
+                        CONF_ENCRYPTED_CONTROLS, False
+                    ),
+                    **user_input,
+                }
+            )
 
             reason = config.validate()
 
@@ -145,5 +156,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         return self.async_show_form(
             step_id="init",
-            data_schema=defaults.schema,
+            data_schema=defaults.schema_for(
+                bool(self.config_entry.data.get(CONF_USE_ENCRYPTION, False))
+            ),
         )

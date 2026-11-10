@@ -44,7 +44,8 @@ async def async_setup_entry(
     sensors_to_add = []
     bool_fields = bluetti_device.get_bool_fields()
 
-    if config.use_encryption:
+    # Without controls the switch fields are shown read-only instead.
+    if not config.controls_enabled:
         bool_fields = bool_fields + bluetti_device.get_switch_fields()
 
     for field in bool_fields:

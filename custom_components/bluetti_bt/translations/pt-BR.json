@@ -15,7 +15,8 @@
         "data": {
           "polling_interval": "Intervalo de consulta em segundos (reinicialização necessária)",
           "polling_timeout": "Tempo limite de consulta em segundos (reinicialização necessária)",
-          "max_retries": "Quantidade máxima de tentativas de conexão (reinicialização necessária)"
+          "max_retries": "Quantidade máxima de tentativas de conexão (reinicialização necessária)",
+          "encrypted_controls": "Ativar controles neste dispositivo criptografado (experimental, reinicialização necessária)"
         }
       }
     },

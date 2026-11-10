@@ -47,7 +47,8 @@ async def async_setup_entry(
     sensors_to_add = []
     sensor_fields = bluetti_device.get_sensor_fields()
 
-    if config.use_encryption:
+    # Without controls the select fields are shown read-only instead.
+    if not config.controls_enabled:
         sensor_fields = sensor_fields + bluetti_device.get_select_fields()
 
     for field in sensor_fields:

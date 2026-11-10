@@ -17,7 +17,8 @@
         "data": {
           "polling_interval": "Datenabruf-Intervall in Sekunden (Neustart erforderlich)",
           "polling_timeout": "Datenabruf-Timeout in Sekunden (Neustart erforderlich)",
-          "max_retries": "Maximale Verbindungsversuche (Neustart erforderlich)"
+          "max_retries": "Maximale Verbindungsversuche (Neustart erforderlich)",
+          "encrypted_controls": "Steuerung für dieses verschlüsselte Gerät aktivieren (experimentell, Neustart erforderlich)"
         }
       }
     },

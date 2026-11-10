@@ -6,6 +6,7 @@ from datetime import timedelta
 import logging
 from homeassistant.components import bluetooth
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from bluetti_bt_connect_lib import (
     build_device,
@@ -21,6 +22,11 @@ from .types import FullDeviceConfig
 ENCRYPTED_KEEP_ALIVE_MARGIN = 15
 """Seconds the link to an encrypted device is held beyond the polling
 interval, so the next poll finds it still open."""
+
+
+WRITE_SETTLE_SECONDS = 5
+"""Seconds to wait after a write before reading the device again, so the
+refresh shows the new value rather than the one being replaced."""
 
 
 class PollingCoordinator(DataUpdateCoordinator):
@@ -82,6 +88,39 @@ class PollingCoordinator(DataUpdateCoordinator):
             lock,
             connection=self.connection,
         )
+
+    @property
+    def writes_through_reader(self) -> bool:
+        """Whether writes have to go through the reader's connection.
+
+        True for an encrypted device. It only understands requests sent
+        inside the encrypted session the reader holds, and it accepts one
+        Bluetooth connection at a time, so a write cannot open its own.
+        """
+        return self.connection is not None
+
+    async def async_write(self, field: str, value) -> None:
+        """Write one field through the reader's connection, then refresh.
+
+        The reader sends the request inside the encrypted session, under the
+        same lock as polling, and reads the device's answer. Raises
+        HomeAssistantError unless the device confirmed the write, so a
+        refused or unanswered write is reported instead of looking like
+        success. If the key exchange does not complete, nothing is sent.
+        """
+        if self.reader is None:
+            raise HomeAssistantError("Device is not initialized")
+
+        result = await self.reader.write(field, value)
+
+        if not result.accepted:
+            self.logger.warning("Write not confirmed - %s", result)
+            raise HomeAssistantError(f"Write not confirmed by the device: {result}")
+
+        self.logger.info("Write accepted - %s", result)
+
+        await asyncio.sleep(WRITE_SETTLE_SECONDS)
+        await self.async_request_refresh()
 
     async def async_disconnect(self) -> None:
         """Release a held connection, when the entry is unloaded."""
