@@ -2,6 +2,22 @@
 
 Newest first. Each section is also published as the GitHub release for that version.
 
+## 2.2.0 (2026-11-10)
+
+### Writes on encrypted devices (untested on hardware)
+
+- `DeviceReader.write()` already sent its request through the encrypted
+  session; this release makes that the supported way to write to an
+  encrypted device and tests it against a simulated one: accepted and
+  refused writes, and that nothing is sent when the key exchange fails.
+- **Apex 300 (`AP300`)**: new switches `ctrl_ac` (2011) and `ctrl_dc` (2012),
+  written to slave 0. The registers are the ones every V2 device uses and
+  their values matched the unit's output states when read, but **no write
+  has been sent to a real Apex 300**.
+- `bluetti-write -e true` now writes through the encrypted session instead
+  of refusing.
+- `DeviceWriter` is unchanged and still plain-protocol only.
+
 ## 2.1.0 (2026-11-10)
 
 ### Encrypted devices are back, and the Apex 300 works

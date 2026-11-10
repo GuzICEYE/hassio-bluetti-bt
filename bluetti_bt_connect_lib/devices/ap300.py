@@ -1,5 +1,11 @@
 from ..base_devices import BaseDeviceV2
-from ..fields import FieldName, UIntField, DecimalField, BoolFieldNonZero
+from ..fields import (
+    FieldName,
+    UIntField,
+    DecimalField,
+    BoolFieldNonZero,
+    SwitchField,
+)
 
 SLAVE = 0
 """The Apex 300 is a 2nd-generation IoT device. It answers at slave 1 too,
@@ -10,9 +16,15 @@ class AP300(BaseDeviceV2):
     """BLUETTI Apex 300.
 
     Encrypted, so it is read through the key exchange in
-    bluetooth/encryption.py. The fields below were checked against a real
-    unit. Keep to register blocks the device serves: after refusing a read
-    (exception 0x02) it stays silent for the next few requests.
+    bluetooth/encryption.py. The read-only fields below were checked against
+    a real unit. Keep to register blocks the device serves: after refusing a
+    read (exception 0x02) it stays silent for the next few requests.
+
+    The two switches use the registers every V2 device uses for them, and
+    the values read from them on a real unit matched its AC and DC output
+    states. Writing them has NOT been tried on hardware. Writes go to slave
+    0, where the device serves its data, through DeviceReader.write() so
+    that they travel inside the encrypted session.
     """
 
     def __init__(self):
@@ -29,6 +41,9 @@ class AP300(BaseDeviceV2):
                 DecimalField(FieldName.AC_OUTPUT_VOLTAGE, 1511, 1).at_slave(SLAVE),
                 BoolFieldNonZero(FieldName.AC_OUTPUT_ON, 2011).at_slave(SLAVE),
                 BoolFieldNonZero(FieldName.DC_OUTPUT_ON, 2012).at_slave(SLAVE),
+                # Control switches (writable, untested on hardware)
+                SwitchField(FieldName.CTRL_AC, 2011).at_slave(SLAVE),
+                SwitchField(FieldName.CTRL_DC, 2012).at_slave(SLAVE),
             ],
             slave=SLAVE,
             write_slave_addr=SLAVE,

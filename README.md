@@ -28,8 +28,14 @@ no BLUETTI account and no cloud connection.
   with a `DeviceConnection` and `keep_alive_seconds`.
 - Checked against a real Apex 300 (`AP300`). It serves its data at Modbus
   slave 0; slave 1 answers with every register zero.
-- Writes go through the same encrypted channel but have not been tested on
-  hardware. Treat encrypted devices as read-only for now.
+- Writes: use `DeviceReader.write()`, which sends the request inside the
+  encrypted session and reports the device's answer as a `WriteResult`. The
+  older `DeviceWriter` sends plain frames on its own connection and does not
+  work on an encrypted device. If the key exchange does not complete,
+  nothing is sent. `bluetti-write -e true` uses this path.
+- **Writing to an encrypted device has not been tried on hardware** (v2.2).
+  It is covered by tests against a simulated device only. The Apex 300 has
+  two writable fields, `ctrl_ac` and `ctrl_dc`.
 
 The encryption code is based on
 [nhurman/bluetti_mqtt](https://github.com/nhurman/bluetti_mqtt) by way of
@@ -232,7 +238,7 @@ FieldName.CTRL_POWER_LIFTING: False
 
 ### Write to supported device
 
-INFO: Writing to devices with encryption has not been tested!
+INFO: Writing to devices with encryption (`-e true`) has not been tested on hardware!
 
 ```bash
 usage: bluetti-write [-h] [-m MAC] [-t TYPE] [--on ON] [--off OFF] [-v VALUE] [-e ENCRYPTION] field
