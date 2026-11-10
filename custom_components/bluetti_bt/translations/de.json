@@ -577,5 +577,29 @@
         "name": "Zeitsteuerung"
       }
     }
+  },
+  "services": {
+    "read_registers": {
+      "name": "Register lesen",
+      "description": "Liest einmalig einen Registerblock und gibt die Rohwerte zurück. Nur lesend. Zum Erkunden von Adressen, die die Gerätedefinition nicht abdeckt. Ein Gerät kann nach einer abgelehnten Adresse die nächsten Anfragen ignorieren.",
+      "fields": {
+        "entry_id": {
+          "name": "Gerät",
+          "description": "Das Bluetti-BT-Gerät, von dem gelesen wird."
+        },
+        "address": {
+          "name": "Adresse",
+          "description": "Erste Registeradresse."
+        },
+        "count": {
+          "name": "Anzahl",
+          "description": "Anzahl der Register, 1 bis 32."
+        },
+        "slave": {
+          "name": "Slave-Adresse",
+          "description": "Modbus-Slave-Adresse. Leer lassen für die Adresse, unter der das Gerät seine Daten liefert."
+        }
+      }
+    }
   }
 }

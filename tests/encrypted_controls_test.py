@@ -250,5 +250,45 @@ class TestEncryptedWrite(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(coord.writes_through_reader)
 
 
+class TestReadRegistersService(unittest.IsolatedAsyncioTestCase):
+    async def _call(self, client, **data):
+        from custom_components.bluetti_bt import async_read_registers
+
+        coord = make_coordinator(client)
+        call = types.SimpleNamespace(data={"entry_id": "entry", **data})
+
+        with mock.patch.object(encryption, "PUBLIC_KEY_K2", client.signing_pubkey_hex):
+            return await async_read_registers(FakeHass(coord), call)
+
+    async def test_reads_raw_words_from_the_devices_own_slave(self):
+        client = ClientMockEncrypted()
+        client.add_r_int(102, 93)
+
+        result = await self._call(client, address=102, count=2)
+
+        self.assertEqual(result["outcome"], "ok")
+        # An Apex 300 serves its data at slave 0.
+        self.assertEqual(result["slave"], 0)
+        self.assertEqual([r["value"] for r in result["registers"]], [93, 0])
+        # A read, and nothing but a read, reached the device.
+        self.assertEqual([request[1] for request in client.plain_requests], [3])
+        self.assertEqual(client.writes, [])
+
+    async def test_slave_can_be_chosen(self):
+        client = ClientMockEncrypted()
+        result = await self._call(client, address=110, count=6, slave=2)
+        self.assertEqual(result["slave"], 2)
+        self.assertEqual(client.plain_requests[0][0], 2)
+
+    async def test_unknown_entry_is_rejected(self):
+        from homeassistant.exceptions import ServiceValidationError
+        from custom_components.bluetti_bt import async_read_registers
+
+        call = types.SimpleNamespace(data={"entry_id": "nope", "address": 1})
+
+        with self.assertRaises(ServiceValidationError):
+            await async_read_registers(FakeHass(None), call)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -577,5 +577,29 @@
         "name": "Time Control"
       }
     }
+  },
+  "services": {
+    "read_registers": {
+      "name": "Read registers",
+      "description": "Reads a block of registers once and returns the raw values. Read-only. For exploring addresses the device definition does not cover. A device may ignore the next few requests after it refuses an address.",
+      "fields": {
+        "entry_id": {
+          "name": "Device",
+          "description": "The Bluetti BT device to read from."
+        },
+        "address": {
+          "name": "Address",
+          "description": "First register address."
+        },
+        "count": {
+          "name": "Count",
+          "description": "Number of registers, 1 to 32."
+        },
+        "slave": {
+          "name": "Slave address",
+          "description": "Modbus slave address. Leave empty for the address the device serves its data from."
+        }
+      }
+    }
   }
 }

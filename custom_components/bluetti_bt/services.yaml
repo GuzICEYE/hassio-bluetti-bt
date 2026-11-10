@@ -1,0 +1,27 @@
+read_registers:
+  fields:
+    entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: bluetti_bt
+    address:
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 65535
+          mode: box
+    count:
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 32
+          mode: box
+    slave:
+      selector:
+        number:
+          min: 0
+          max: 247
+          mode: box

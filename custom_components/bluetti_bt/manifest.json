@@ -35,5 +35,5 @@
     "requirements": [
         "bluetti-bt-connect-lib @ https://github.com/GuzICEYE/hassio-bluetti-bt/archive/75556dccbc55543d961c3058323bd656632665fc.zip"
     ],
-    "version": "0.5.0"
+    "version": "0.5.1"
 }
