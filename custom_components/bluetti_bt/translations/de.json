@@ -228,6 +228,15 @@
       "pv_s2_voltage": {
         "name": "PV String 2 Spannung"
       },
+      "solarx_current": {
+        "name": "SolarX Stromstärke"
+      },
+      "solarx_power": {
+        "name": "SolarX Leistung"
+      },
+      "solarx_voltage": {
+        "name": "SolarX Spannung"
+      },
       "sm_p1_current": {
         "name": "Smartmeter Phase 1 Stromstärke"
       },

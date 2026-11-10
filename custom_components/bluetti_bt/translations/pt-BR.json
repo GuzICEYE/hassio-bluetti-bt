@@ -86,6 +86,9 @@
       "pv_s2_current": { "name": "Corrente do string FV 2" },
       "pv_s2_power": { "name": "Potência do string FV 2" },
       "pv_s2_voltage": { "name": "Tensão do string FV 2" },
+      "solarx_current": { "name": "Corrente do SolarX" },
+      "solarx_power": { "name": "Potência do SolarX" },
+      "solarx_voltage": { "name": "Tensão do SolarX" },
 
       "sm_p1_current": { "name": "Corrente do medidor inteligente Fase 1" },
       "sm_p1_power": { "name": "Potência do medidor inteligente Fase 1" },

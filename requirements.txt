@@ -1,2 +1,2 @@
 homeassistant
-bluetti-bt-connect-lib @ https://github.com/GuzICEYE/hassio-bluetti-bt/archive/75556dccbc55543d961c3058323bd656632665fc.zip
+bluetti-bt-connect-lib @ https://github.com/GuzICEYE/hassio-bluetti-bt/archive/4151af0c4327c6cee8dc679bda16746529ab3fa2.zip
